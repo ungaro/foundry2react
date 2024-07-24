@@ -1,0 +1,108 @@
+import React, { useState } from 'react';
+import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
+import { parseUnits, formatUnits } from 'viem';
+
+const CONTRACT_ADDRESS = "YOUR_DEPLOYED_CONTRACT_ADDRESS";
+const CONTRACT_ABI = YOUR_CONTRACT_ABI; // Replace with actual ABI
+
+export default function TestRunner() {
+  const [currentAccount, setCurrentAccount] = useState('');
+  const { address } = useAccount();
+
+  const handleAccountChange = (newAccount) => {
+    setCurrentAccount(newAccount);
+    // In a real implementation, you'd need to update the wagmi hooks or provider here
+  };
+
+  {{#each functions}}
+  const { write: {{name}}, data: {{name}}Data } = useContractWrite({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: '{{name}}',
+  });
+
+  const { isLoading: is{{name}}Loading, isSuccess: is{{name}}Success } = useWaitForTransaction({
+    hash: {{name}}Data?.hash,
+  });
+  {{/each}}
+
+  const runTestCase = async (testCase) => {
+    const parsedTestCase = JSON.parse(testCase);
+    for (const call of parsedTestCase.function_calls) {
+      const func = eval(call.function_name);
+      if (func) {
+        await func({ args: call.arguments });
+      } else {
+        console.error(`Function ${call.function_name} not found`);
+      }
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Solidity Test Runner</h1>
+      
+      {{#each test_cases}}
+      <div className="mb-8 p-4 border rounded">
+        <h2 className="text-xl font-semibold mb-2">{{name}}</h2>
+        
+        <div className="mb-4">
+          <h3 className="font-semibold">Function Calls:</h3>
+          {{#each function_calls}}
+          <div className="mb-2">
+            <button 
+              className="bg-green-500 text-white rounded px-2 py-1 mr-2"
+              onClick={() => eval('{{function_name}}')({
+                args: [{{#each arguments}}'{{this}}',{{/each}}]
+              })}
+            >
+              Call {{function_name}}
+            </button>
+            <span>Args: {{arguments}}</span>
+          </div>
+          {{/each}}
+        </div>
+        
+        <div className="mb-4">
+          <h3 className="font-semibold">Assertions:</h3>
+          {{#each assertions}}
+          <div>{{assertion_type}}: {{expected_value}}</div>
+          {{/each}}
+        </div>
+
+        <button 
+          className="bg-blue-500 text-white rounded px-4 py-2"
+          onClick={() => runTestCase('{{serialized}}')}
+        >
+          Run Entire Test Case
+        </button>
+      </div>
+      {{/each}}
+
+      <h2 className="text-2xl font-bold mt-8 mb-4">Contract Functions</h2>
+      {{#each functions}}
+      <div className="mb-4">
+        <h3 className="text-xl font-semibold mb-2">{{name}}</h3>
+        {{#if (eq state_mutability "view")}}
+        <button 
+          className="bg-yellow-500 text-white rounded px-4 py-2"
+          onClick={() => {{name}}()}
+        >
+          Read {{name}}
+        </button>
+        <p className="mt-2">Result: <span id="{{name}}Result">N/A</span></p>
+        {{else}}
+        <button 
+          className="bg-purple-500 text-white rounded px-4 py-2"
+          onClick={() => {{name}}()}
+          disabled={false}
+        >
+          Write {{name}}
+        </button>
+        <p className="text-green-500 mt-2" id="{{name}}Success" style="display: none;">{{name}} successful!</p>
+        {{/if}}
+      </div>
+      {{/each}}
+    </div>
+  );
+}
