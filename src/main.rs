@@ -1,13 +1,14 @@
 use eyre::Result;
 use clap::Parser;
 use std::path::PathBuf;
+use std::fs;
 
 mod abi_parser;
 mod foundry_test_parser;
 mod generator;
 
 #[derive(Parser)]
-#[clap(version = "1.0", author = "Your Name")]
+#[clap(version = "1.0", author = "Alp Guneysel")]
 struct Opts {
     #[clap(short, long)]
     abi: PathBuf,
@@ -22,16 +23,40 @@ struct Opts {
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
-    let contract_functions = abi_parser::parse_abi(&opts.abi)?;
-    
-    let test_cases = if let Some(test_path) = opts.test {
-        foundry_test_parser::parse_foundry_test(&test_path)?
+    let test_contract = if let Some(test_path) = opts.test {
+        foundry_test_parser::parse_foundry_test_file(&test_path)?
     } else {
-        vec![]
+        println!("No test file provided. Skipping test parsing.");
+        return Ok(());
     };
 
-    generator::generate_react_component(&contract_functions, &test_cases, &opts.output)?;
+    println!("Test Contract: {}", test_contract.name);
+    
+    println!("\nState Variables:");
+    for var in &test_contract.state_variables {
+        println!("  {}: {} = {:?}", var.name, var.type_, var.value);
+    }
 
-    println!("React component generated successfully!");
+    if let Some(setup) = &test_contract.setup {
+        println!("\nSetup Function:");
+        for step in &setup.steps {
+            println!("  {:?}", step);
+        }
+    }
+
+    println!("\nTest Functions:");
+    for func in &test_contract.test_functions {
+        println!("Test: {}", func.name);
+        for step in &func.steps {
+            println!("  {:?}", step);
+        }
+    }
+
+
+    let js_code = generator::generate_js_code(&test_contract)?;
+
+    fs::write(&opts.output, js_code)?;
+
+    println!("\nReact component generation somewhat implemented");
     Ok(())
 }

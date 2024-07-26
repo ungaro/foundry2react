@@ -1,108 +1,112 @@
 import React, { useState } from 'react';
-import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
-import { parseUnits, formatUnits } from 'viem';
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  webSocket,
+  keccak256,
+  bytesToHex,
+  parseAbi,
+  TransactionExecutionError,
+  type GetBlockNumberErrorType,
+  BaseError,
+  ContractFunctionRevertedError,
+} from "viem";
+import { anvil } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
+import * as dotenv from "dotenv";
 
-const CONTRACT_ADDRESS = "YOUR_DEPLOYED_CONTRACT_ADDRESS";
-const CONTRACT_ABI = YOUR_CONTRACT_ABI; // Replace with actual ABI
+dotenv.config();
 
-export default function TestRunner() {
-  const [currentAccount, setCurrentAccount] = useState('');
-  const { address } = useAccount();
 
-  const handleAccountChange = (newAccount) => {
-    setCurrentAccount(newAccount);
-    // In a real implementation, you'd need to update the wagmi hooks or provider here
-  };
 
-  {{#each functions}}
-  const { write: {{name}}, data: {{name}}Data } = useContractWrite({
-    address: CONTRACT_ADDRESS,
-    abi: CONTRACT_ABI,
-    functionName: '{{name}}',
-  });
 
-  const { isLoading: is{{name}}Loading, isSuccess: is{{name}}Success } = useWaitForTransaction({
-    hash: {{name}}Data?.hash,
-  });
+const {{contractName}}TestComponent = () => {
+
+
+
+// Client setup
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+
+const publicClient = createPublicClient({
+  chain: anvil,
+  transport: webSocket(process.env.RPC_URL, {
+    reconnect: true,
+    retryCount: 100,
+  }),
+});
+
+const walletClient = createWalletClient({
+  account,
+  chain: anvil,
+  transport: webSocket(process.env.RPC_URL, {
+    reconnect: true,
+    retryCount: 100,
+  }),
+});
+
+
+
+
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [contract, setContract] = useState(null);
+  {{#each stateVariables}}
+  const [{{this.name}}State, set{{capitalize this.name}}State] = useState(null);
   {{/each}}
 
-  const runTestCase = async (testCase) => {
-    const parsedTestCase = JSON.parse(testCase);
-    for (const call of parsedTestCase.function_calls) {
-      const func = eval(call.function_name);
-      if (func) {
-        await func({ args: call.arguments });
-      } else {
-        console.error(`Function ${call.function_name} not found`);
-      }
+  const setup = async () => {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send('eth_requestAccounts', []);
+    const signer = provider.getSigner();
+    const contractAddress = 'YOUR_CONTRACT_ADDRESS';
+    const contractABI = 'YOUR_CONTRACT_ABI';
+    const contract = new ethers.Contract(contractAddress, contractABI, signer);
+    setProvider(provider);
+    setSigner(signer);
+    setContract(contract);
+    {{#if setupFunction}}
+    {{#each setupFunction.steps}}
+    {{#if (eq this.type "FunctionCall")}}
+    await contract['{{this.function}}']({{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}});
+    {{/if}}
+    {{/each}}
+    {{/if}}
+  };
+
+  {{#each testFunctions}}
+  const {{this.name}} = async () => {
+    try {
+      {{#each this.steps}}
+      {{#if (eq this.type "FunctionCall")}}
+      await contract['{{this.function}}']({{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}});
+      {{else if (eq this.type "Assertion")}}
+      console.assert({{parseAssertion this.arguments}}, '{{this.assert_type}}');
+      {{else if (eq this.type "VMPrank")}}
+      // Set signer to {{this}}
+      {{else if (eq this.type "VMStartPrank")}}
+      // Start pranking as {{this}}
+      {{else if (eq this.type "VMStopPrank")}}
+      // Stop pranking
+      {{/if}}
+      {{/each}}
+      console.log('{{this.name}} passed');
+    } catch (error) {
+      console.error('{{this.name}} failed:', error);
     }
   };
 
+  {{/each}}
+
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Solidity Test Runner</h1>
-      
-      {{#each test_cases}}
-      <div className="mb-8 p-4 border rounded">
-        <h2 className="text-xl font-semibold mb-2">{{name}}</h2>
-        
-        <div className="mb-4">
-          <h3 className="font-semibold">Function Calls:</h3>
-          {{#each function_calls}}
-          <div className="mb-2">
-            <button 
-              className="bg-green-500 text-white rounded px-2 py-1 mr-2"
-              onClick={() => eval('{{function_name}}')({
-                args: [{{#each arguments}}'{{this}}',{{/each}}]
-              })}
-            >
-              Call {{function_name}}
-            </button>
-            <span>Args: {{arguments}}</span>
-          </div>
-          {{/each}}
-        </div>
-        
-        <div className="mb-4">
-          <h3 className="font-semibold">Assertions:</h3>
-          {{#each assertions}}
-          <div>{{assertion_type}}: {{expected_value}}</div>
-          {{/each}}
-        </div>
-
-        <button 
-          className="bg-blue-500 text-white rounded px-4 py-2"
-          onClick={() => runTestCase('{{serialized}}')}
-        >
-          Run Entire Test Case
-        </button>
-      </div>
-      {{/each}}
-
-      <h2 className="text-2xl font-bold mt-8 mb-4">Contract Functions</h2>
-      {{#each functions}}
-      <div className="mb-4">
-        <h3 className="text-xl font-semibold mb-2">{{name}}</h3>
-        {{#if (eq state_mutability "view")}}
-        <button 
-          className="bg-yellow-500 text-white rounded px-4 py-2"
-          onClick={() => {{name}}()}
-        >
-          Read {{name}}
-        </button>
-        <p className="mt-2">Result: <span id="{{name}}Result">N/A</span></p>
-        {{else}}
-        <button 
-          className="bg-purple-500 text-white rounded px-4 py-2"
-          onClick={() => {{name}}()}
-          disabled={false}
-        >
-          Write {{name}}
-        </button>
-        <p className="text-green-500 mt-2" id="{{name}}Success" style="display: none;">{{name}} successful!</p>
-        {{/if}}
-      </div>
+    <div>
+      <h1>{{contractName}} Tests</h1>
+      <button onClick={setup}>Setup</button>
+      {{#each testFunctions}}
+      <button onClick={{this.name}}>Run {{this.name}}</button>
       {{/each}}
     </div>
   );
-}
+};
+
+export default {{contractName}}TestComponent;
