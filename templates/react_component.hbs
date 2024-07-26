@@ -76,25 +76,18 @@ const {{contractName}}TestComponent = () => {
     try {
       {{#each this.steps}}
       {{#if (eq this.type "FunctionCall")}}
-      await walletClient.writeContract({
-        ...contract,
-        account: {{parseAccount this.contract}},
-        functionName: '{{this.function}}',
-        args: [{{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}}],
-      });
+      {{#if (eq this.contract "vm")}}
+      // VM operation: {{this.function}}({{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}})
+      {{else}}
+      await contract.write.{{this.function}}([{{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}}]);
+      {{/if}}
       {{else if (eq this.type "Assertion")}}
       {{#if (eq this.assert_type "assertEq")}}
-      const {{generateAssertionVar}} = await contract.read.{{parseAssertionFunction this.arguments.[0]}}([{{parseAssertionArgs this.arguments.[0]}}]);
-      console.assert({{generateAssertionVar}} === {{parseArg this.arguments.[1]}}, '{{this.assert_type}}: {{generateAssertionVar}}');
+      const {{generateAssertionVar this.arguments.[0]}} = await contract.read.{{parseAssertionFunction this.arguments.[0]}}([{{parseAssertionArgs this.arguments.[0]}}]);
+      console.assert({{generateAssertionVar this.arguments.[0]}} === {{parseArg this.arguments.[1]}}, 'assertEq failed: {{parseAssertionFunction this.arguments.[0]}}({{parseAssertionArgs this.arguments.[0]}}) !== {{parseArg this.arguments.[1]}}');
       {{else}}
-      console.assert({{parseAssertion this.arguments}}, '{{this.assert_type}}');
+      console.assert({{parseAssertion this.arguments.[0]}}, '{{this.assert_type}} failed');
       {{/if}}
-      {{else if (eq this.type "VMPrank")}}
-      // Set account to {{this}}
-      {{else if (eq this.type "VMStartPrank")}}
-      // Start pranking as {{this}}
-      {{else if (eq this.type "VMStopPrank")}}
-      // Stop pranking
       {{/if}}
       {{/each}}
       console.log('{{this.name}} passed');
@@ -109,7 +102,7 @@ const {{contractName}}TestComponent = () => {
     <div>
       <h1>{{contractName}} Tests</h1>
       {{#each testFunctions}}
-      <button onClick={{this.name}}>Run {{this.name}}</button>
+      <button onClick={{{this.name}}}>Run {{this.name}}</button>
       {{/each}}
     </div>
   );
