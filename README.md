@@ -44,9 +44,9 @@ Foundry2React is a powerful tool designed to automatically generate React compon
 
 ```
 foundry2react --test path/to/your/test.sol --output path/to/output/TestComponent.js
-`foundry2react --test ../f2r_test/test/Token.t.sol --output ./out/generated.js --abi ../f2r_test/abi/token_abi.json`
-
 ```
+
+`foundry2react --test ../f2r_test/test/Token.t.sol --output ./out/generated.js --abi ../f2r_test/abi/token_abi.json`
 
 
 `cargo run -- --test ../f2r_test/test/Token.t.sol --output ./out/generated.js --abi ../f2r_test/abi/token_abi.json`

@@ -1,16 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   createPublicClient,
   createWalletClient,
   http,
-  webSocket,
-  keccak256,
-  bytesToHex,
   parseAbi,
-  TransactionExecutionError,
-  type GetBlockNumberErrorType,
-  BaseError,
-  ContractFunctionRevertedError,
+  getContract,
 } from "viem";
 import { anvil } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
@@ -18,72 +12,85 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-
-
-
 const {{contractName}}TestComponent = () => {
-
-
-
-// Client setup
-const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
-
-const publicClient = createPublicClient({
-  chain: anvil,
-  transport: webSocket(process.env.RPC_URL, {
-    reconnect: true,
-    retryCount: 100,
-  }),
-});
-
-const walletClient = createWalletClient({
-  account,
-  chain: anvil,
-  transport: webSocket(process.env.RPC_URL, {
-    reconnect: true,
-    retryCount: 100,
-  }),
-});
-
-
-
-
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
+  const [publicClient, setPublicClient] = useState(null);
+  const [walletClient, setWalletClient] = useState(null);
   const [contract, setContract] = useState(null);
   {{#each stateVariables}}
-  const [{{this.name}}State, set{{capitalize this.name}}State] = useState(null);
+  const [{{this.name}}, set{{capitalize this.name}}] = useState(null);
   {{/each}}
 
-  const setup = async () => {
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    await provider.send('eth_requestAccounts', []);
-    const signer = provider.getSigner();
-    const contractAddress = 'YOUR_CONTRACT_ADDRESS';
-    const contractABI = 'YOUR_CONTRACT_ABI';
-    const contract = new ethers.Contract(contractAddress, contractABI, signer);
-    setProvider(provider);
-    setSigner(signer);
-    setContract(contract);
-    {{#if setupFunction}}
-    {{#each setupFunction.steps}}
-    {{#if (eq this.type "FunctionCall")}}
-    await contract['{{this.function}}']({{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}});
-    {{/if}}
-    {{/each}}
-    {{/if}}
-  };
+  useEffect(() => {
+    const setup = async () => {
+      const account = privateKeyToAccount(process.env.PRIVATE_KEY);
+      {{#each stateVariables}}
+      const {{this.name}}Account = privateKeyToAccount(process.env.{{uppercase this.name}}_PRIVATE_KEY);
+      {{/each}}
+
+      const publicClient = createPublicClient({
+        chain: anvil,
+        transport: http(process.env.RPC_URL),
+      });
+
+      const walletClient = createWalletClient({
+        account,
+        chain: anvil,
+        transport: http(process.env.RPC_URL),
+      });
+
+      setPublicClient(publicClient);
+      setWalletClient(walletClient);
+      {{#each stateVariables}}
+      set{{capitalize this.name}}({{this.name}}Account);
+      {{/each}}
+
+      const contractABI = parseAbi([
+        {{#each contractFunctions}}
+        "{{this}}",
+        {{/each}}
+      ]);
+
+      const contract = getContract({
+        address: process.env.CONTRACT_ADDRESS,
+        abi: contractABI,
+        publicClient,
+        walletClient,
+      });
+
+      setContract(contract);
+
+      {{#if setupFunction}}
+      {{#each setupFunction.steps}}
+      {{#if (eq this.type "FunctionCall")}}
+      await contract.write.{{this.function}}([{{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}}]);
+      {{/if}}
+      {{/each}}
+      {{/if}}
+    };
+
+    setup();
+  }, []);
 
   {{#each testFunctions}}
   const {{this.name}} = async () => {
     try {
       {{#each this.steps}}
       {{#if (eq this.type "FunctionCall")}}
-      await contract['{{this.function}}']({{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}});
+      await walletClient.writeContract({
+        ...contract,
+        account: {{parseAccount this.contract}},
+        functionName: '{{this.function}}',
+        args: [{{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}}],
+      });
       {{else if (eq this.type "Assertion")}}
+      {{#if (eq this.assert_type "assertEq")}}
+      const {{generateAssertionVar}} = await contract.read.{{parseAssertionFunction this.arguments.[0]}}([{{parseAssertionArgs this.arguments.[0]}}]);
+      console.assert({{generateAssertionVar}} === {{parseArg this.arguments.[1]}}, '{{this.assert_type}}: {{generateAssertionVar}}');
+      {{else}}
       console.assert({{parseAssertion this.arguments}}, '{{this.assert_type}}');
+      {{/if}}
       {{else if (eq this.type "VMPrank")}}
-      // Set signer to {{this}}
+      // Set account to {{this}}
       {{else if (eq this.type "VMStartPrank")}}
       // Start pranking as {{this}}
       {{else if (eq this.type "VMStopPrank")}}
@@ -101,7 +108,6 @@ const walletClient = createWalletClient({
   return (
     <div>
       <h1>{{contractName}} Tests</h1>
-      <button onClick={setup}>Setup</button>
       {{#each testFunctions}}
       <button onClick={{this.name}}>Run {{this.name}}</button>
       {{/each}}
