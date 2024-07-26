@@ -82,12 +82,15 @@ const {{contractName}}TestComponent = () => {
       await contract.write.{{this.function}}([{{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}}]);
       {{/if}}
       {{else if (eq this.type "Assertion")}}
-      {{#if (eq this.assert_type "assertEq")}}
-      const {{generateAssertionVar this.arguments.[0]}} = await contract.read.{{parseAssertionFunction this.arguments.[0]}}([{{parseAssertionArgs this.arguments.[0]}}]);
-      console.assert({{generateAssertionVar this.arguments.[0]}} === {{parseArg this.arguments.[1]}}, 'assertEq failed: {{parseAssertionFunction this.arguments.[0]}}({{parseAssertionArgs this.arguments.[0]}}) !== {{parseArg this.arguments.[1]}}');
-      {{else}}
-      console.assert({{parseAssertion this.arguments.[0]}}, '{{this.assert_type}} failed');
-      {{/if}}
+     {{#if
+ (eq this.assert_type "assertEq")}}
+    const result = await {{parseFunctionCall this.arguments.[0]}};
+    console.assert(result === {{parseArg this.arguments.[1]}}, 'assertEq failed: {{parseFunctionCall this.arguments.[0]}} !== {{parseArg this.arguments.[1]}}');
+  {{else}}
+    console.assert(await {{parseFunctionCall this.arguments.[0]}}, '{{this.assert_type}} failed');
+  {{
+/if
+}}
       {{/if}}
       {{/each}}
       console.log('{{this.name}} passed');
