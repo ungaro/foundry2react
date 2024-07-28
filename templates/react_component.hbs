@@ -8,9 +8,6 @@ import {
 } from "viem";
 import { anvil } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import * as dotenv from "dotenv";
-
-dotenv.config();
 
 const {{contractName}}TestComponent = () => {
   const [publicClient, setPublicClient] = useState(null);
@@ -22,20 +19,20 @@ const {{contractName}}TestComponent = () => {
 
   useEffect(() => {
     const setup = async () => {
-      const account = privateKeyToAccount(process.env.PRIVATE_KEY);
+      const account = privateKeyToAccount(import.meta.env.PRIVATE_KEY);
       {{#each stateVariables}}
-      const {{this.name}}Account = privateKeyToAccount(process.env.{{uppercase this.name}}_PRIVATE_KEY);
+      const {{this.name}}Account = privateKeyToAccount(import.meta.env.{{uppercase this.name}}_PRIVATE_KEY);
       {{/each}}
 
       const publicClient = createPublicClient({
         chain: anvil,
-        transport: http(process.env.RPC_URL),
+        transport: http(import.meta.env.RPC_URL),
       });
 
       const walletClient = createWalletClient({
         account,
         chain: anvil,
-        transport: http(process.env.RPC_URL),
+        transport: http(import.meta.env.RPC_URL),
       });
 
       setPublicClient(publicClient);
@@ -51,7 +48,7 @@ const {{contractName}}TestComponent = () => {
       ]);
 
       const contract = getContract({
-        address: process.env.CONTRACT_ADDRESS,
+        address: import.meta.env.CONTRACT_ADDRESS,
         abi: contractABI,
         publicClient,
         walletClient,
@@ -82,15 +79,45 @@ const {{contractName}}TestComponent = () => {
       await contract.write.{{this.function}}([{{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}}]);
       {{/if}}
       {{else if (eq this.type "Assertion")}}
-     {{#if
+    {{
+#if
  (eq this.assert_type "assertEq")}}
-    const result = await {{parseFunctionCall this.arguments.[0]}};
-    console.assert(result === {{parseArg this.arguments.[1]}}, 'assertEq failed: {{parseFunctionCall this.arguments.[0]}} !== {{parseArg this.arguments.[1]}}');
+    {{
+#with
+ (parseFunctionCall this.arguments.[0])}}
+      {{
+#if
+ (ne this "null")}}
+        const result = await {{this}};
+        console.assert(result === {{parseArg ../this.arguments.[1]}}, '{{../this.assert_type}} failed: {{this}} !== {{parseArg ../this.arguments.[1]}}');
+      {{else}}
+        console.log('Unable to parse function call for assertion: {{json ../this.arguments.[0]}}');
+      {{
+/if
+}}
+    {{
+/with
+}}
   {{else}}
-    console.assert(await {{parseFunctionCall this.arguments.[0]}}, '{{this.assert_type}} failed');
+    {{
+#with
+ (parseFunctionCall this.arguments.[0])}}
+      {{
+#if
+ (ne this "null")}}
+        console.assert(await {{this}}, '{{../this.assert_type}} failed');
+      {{else}}
+        console.log('Unable to parse function call for assertion: {{json ../this.arguments.[0]}}');
+      {{
+/if
+}}
+    {{
+/with
+}}
   {{
 /if
 }}
+
       {{/if}}
       {{/each}}
       console.log('{{this.name}} passed');
@@ -104,9 +131,13 @@ const {{contractName}}TestComponent = () => {
   return (
     <div>
       <h1>{{contractName}} Tests</h1>
-      {{#each testFunctions}}
-      <button onClick={{{this.name}}}>Run {{this.name}}</button>
-      {{/each}}
+  {{
+#each
+ testFunctions}}
+  <button onClick={{raw this.name}}>Run {{this.name}}</button>
+  {{
+/each
+}}
     </div>
   );
 };

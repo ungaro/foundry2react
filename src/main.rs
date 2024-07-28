@@ -46,7 +46,7 @@ fn main() -> Result<()> {
 
     println!("\nTest Functions:");
     for func in &test_contract.test_functions {
-        println!("Test: {}", func.name);
+        println!("\nTest: {}", func.name);
         for step in &func.steps {
             println!("  {:?}", step);
         }
