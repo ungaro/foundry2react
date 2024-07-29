@@ -47,9 +47,13 @@ Foundry2React is a powerful tool designed to automatically generate React compon
 foundry2react --test path/to/your/test.sol --output path/to/output/TestComponent.js
 ```
 
-`foundry2react --test ./examples/Token/test/Token.t.sol --output ./out/TokenTestComponent.tsx --abi ./examples/Token/abi/token_abi.json`
+```
+foundry2react --test ./examples/Token/test/Token.t.sol --output ./out/TokenTestComponent.tsx --abi ./examples/Token/abi/token_abi.json
+```
 
-`cargo run -- --test ./examples/Token/test/Token.t.sol --output ./out/TokenTestComponent.tsx --abi ./examples/Token/abi/token_abi.json`
+```
+cargo run -- --test ./examples/Token/test/Token.t.sol --output ./out/TokenTestComponent.tsx --abi ./examples/Token/abi/token_abi.json
+```
 
 ### Options
 
@@ -61,7 +65,7 @@ foundry2react --test path/to/your/test.sol --output path/to/output/TestComponent
 1. **Parsing**: The tool parses the Solidity test file using the `solang-parser` library.
 2. **Extraction**: It extracts relevant information such as state variables, setup functions, and test functions.
 3. **Code Generation**: Using Handlebars templates, it generates a React component that simulates the test environment.
-4. **ethers.js Integration**: The generated component uses ethers.js to interact with the Ethereum network and smart contracts.
+4. **viem Integration**: The generated component uses viem to interact with the Ethereum network and smart contracts.
 
 ## Generated Component Structure
 
@@ -85,17 +89,6 @@ You can customize the output by modifying the Handlebars template located at `te
 - `src/foundry_test_parser.rs`: Solidity test file parser
 - `src/generator.rs`: React component generator
 - `templates/react_component.hbs`: Handlebars template for React component
-
-### Adding New Features
-
-1. To add support for new Solidity test constructs:
-
-   - Update the `TestStep` enum in `foundry_test_parser.rs`
-   - Modify the parsing logic in `extract_test_step` function
-
-2. To change the React component output:
-   - Modify the Handlebars template in `templates/react_component.hbs`
-   - Update the `generate_js_code` function in `generator.rs` if necessary
 
 ### Running Tests
 
