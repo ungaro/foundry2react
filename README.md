@@ -1,5 +1,8 @@
 # Foundry2React
 
+> [!WARNING]  
+> This work is WIP, currently not all features are working. The output is currently for VITE, and some of the output is still not good. Also the tool name will change. You can see a sample output from [TokenTestComponent](./out/TokenTestComponent.tsx) 
+
 ## Description
 
 Foundry2React is a powerful tool designed to automatically generate React components from Foundry Solidity test files. This project bridges the gap between smart contract testing and frontend development, allowing developers to quickly create interactive frontend representations of their Solidity tests.
@@ -10,10 +13,6 @@ Foundry2React is a powerful tool designed to automatically generate React compon
 - Extract test functions, setup steps, and assertions
 - Generate React components with viem and wagmi integration
 - Simulate contract interactions and test scenarios in the browser
-
-// TODO: How would be this possible?
-- Support for common Foundry test operations (e.g., vm.prank, vm.startPrank, vm.stopPrank)
-
 - Handlebars templating for flexible and customizable output
 
 ## Installation
@@ -26,12 +25,14 @@ Foundry2React is a powerful tool designed to automatically generate React compon
 ### Steps
 
 1. Clone the repository:
+
    ```
    git clone https://github.com/yourusername/foundry2react.git
    cd foundry2react
    ```
 
 2. Build the project:
+
    ```
    cargo build --release
    ```
@@ -48,10 +49,7 @@ foundry2react --test path/to/your/test.sol --output path/to/output/TestComponent
 
 `foundry2react --test ../f2r_test/test/Token.t.sol --output ./out/generated.js --abi ../f2r_test/abi/token_abi.json`
 
-
 `cargo run -- --test ../f2r_test/test/Token.t.sol --output ./out/generated.js --abi ../f2r_test/abi/token_abi.json`
-
-
 
 ### Options
 
@@ -91,6 +89,7 @@ You can customize the output by modifying the Handlebars template located at `te
 ### Adding New Features
 
 1. To add support for new Solidity test constructs:
+
    - Update the `TestStep` enum in `foundry_test_parser.rs`
    - Modify the parsing logic in `extract_test_step` function
 
