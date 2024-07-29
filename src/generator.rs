@@ -33,11 +33,13 @@ pub fn generate_js_code(test_contract: &TestContract) -> Result<String, handleba
     handlebars.register_helper("capitalize", Box::new(capitalize_helper));
     handlebars.register_helper("uppercase", Box::new(uppercase_helper));
     handlebars.register_helper("parseArg", Box::new(parse_arg_helper));
+    
     handlebars.register_helper("parseAssertionFunction", Box::new(parse_assertion_function_helper));
     handlebars.register_helper("parseAssertionArgs", Box::new(parse_assertion_args_helper));
     handlebars.register_helper("generateAssertionVar", Box::new(generate_assertion_var_helper));
     handlebars.register_helper("parseAssertion", Box::new(parse_assertion_helper));
     handlebars.register_helper("parseFunctionCall", Box::new(parse_function_call_helper));
+    
     handlebars.register_helper("raw", Box::new(raw_helper));
     handlebars.register_helper("json", Box::new(json_helper));  // Add this line
 
@@ -74,7 +76,9 @@ fn raw_helper(
 
 fn capitalize_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &handlebars::Context, _: &mut handlebars::RenderContext, out: &mut dyn handlebars::Output) -> handlebars::HelperResult {
     let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
+    log_debug(&format!("PARAM: {}", param));
     let capitalized = param.chars().next().map(|c| c.to_uppercase().collect::<String>() + &param[1..]).unwrap_or_default();
+    log_debug(&format!("PARAM_CAP: {}", capitalized));
     out.write(&capitalized)?;
     Ok(())
 }
@@ -93,33 +97,40 @@ fn parse_assertion_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _:
 }
 
 
-
 fn parse_function_call(map: &serde_json::Map<String, Value>) -> String {
-    let empty_map = serde_json::Map::new();
+
+println!("function_call: {:#?}",map);
+
+    let function = parse_value(map.get("function").unwrap_or(&Value::Null));
     let empty_vec = Vec::new();
-
-    let function = map.get("function").and_then(|f| f.as_object()).unwrap_or(&empty_map);
-    let function_name = function.get("name").and_then(|n| n.as_str()).unwrap_or("unknownFunction");
-    
     let arguments = map.get("arguments").and_then(|a| a.as_array()).unwrap_or(&empty_vec);
-    let parsed_args: Vec<String> = arguments.iter().map(|a| parse_argument(a)).collect();
-    
-    if function_name == "transfer" || function_name == "approve" || function_name == "transferFrom" {
-        format!("contract.write.{}({})", function_name, parsed_args.join(", "))
-    } else {
-        format!("await contract.read.{}({})", function_name, parsed_args.join(", "))
-    }
+    let parsed_args: Vec<String> = arguments.iter().map(parse_value).collect();
+    format!("{}({})", function, parsed_args.join(", "))
+
+
 }
 
-fn parse_variable(map: &serde_json::Map<String, Value>) -> String {
-    map.get("name").and_then(|n| n.as_str()).unwrap_or("unknownVariable").to_string()
+
+fn parse_member_access(map: &serde_json::Map<String, Value>) -> String {
+    let object = parse_value(map.get("object").unwrap_or(&Value::Null));
+    let member = parse_value(map.get("member").unwrap_or(&Value::Null));
+    format!("{}.{}", object, member)
 }
+fn parse_variable(map: &serde_json::Map<String, Value>) -> String {
+    map.get("name")
+       .and_then(|n| n.as_object())
+       .and_then(|o| o.get("name"))
+       .and_then(|n| n.as_str())
+       .unwrap_or("null")
+       .to_string()
+}
+
 
 fn parse_number_literal(map: &serde_json::Map<String, Value>) -> String {
     let value = map.get("value").and_then(|v| v.as_str()).unwrap_or("0");
-    format!("BigInt({}e18)", value)
+    let subdenomination = map.get("subdenomination").and_then(|s| s.as_str()).unwrap_or("");
+    format!("BigInt({}{})", value, subdenomination)
 }
-
 
 fn extract_variable_name(var: &str) -> String {
     if let Some(start) = var.rfind("name: \"") {
@@ -131,6 +142,13 @@ fn extract_variable_name(var: &str) -> String {
     "unknownVariable".to_string()
 }
 
+fn parse_identifier(map: &serde_json::Map<String, Value>) -> String {
+    map.get("name")
+       .and_then(|n| n.as_str())
+       .unwrap_or("null")
+       .to_string()
+}
+
 fn extract_number_literal(num: &str) -> String {
     if let Some(start) = num.rfind(", \"") {
         let start = start + 3;
@@ -140,75 +158,183 @@ fn extract_number_literal(num: &str) -> String {
     }
     "BigInt(0)".to_string()
 }
-/*
-fn parse_arg_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &handlebars::Context, _: &mut handlebars::RenderContext, out: &mut dyn handlebars::Output) -> handlebars::HelperResult {
-    let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
-    log_debug(&format!("parse_arg_helper input: {}", param));
-    let parsed = parse_ast(param);
-    log_debug(&format!("parse_arg_helper output: {}", parsed));
-    out.write(&parsed)?;
-    Ok(())
-}
-*/
+
 fn parse_arg_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &handlebars::Context, _: &mut handlebars::RenderContext, out: &mut dyn handlebars::Output) -> handlebars::HelperResult {
     let param = h.param(0).ok_or_else(|| RenderError::new("Param 0 is required for parseArg helper"))?;
-    let parsed = parse_assertion(param.value().as_str().unwrap_or(""));
+    let input = param.value().to_string();
+    log_debug(&format!("parse_arg_helper input: {}", input));
+    
+    let parsed = parse_ast_string(&input);
+    log_debug(&format!("parse_arg_helper parsed: {}", parsed));
+
     out.write(&parsed)?;
     Ok(())
 }
 
-/*
+fn parse_ast_string(input: &str) -> String {
+    log_debug(&format!("parse_ast_string input: {}", input));
 
-fn parse_function_call_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &handlebars::Context, _: &mut handlebars::RenderContext, out: &mut dyn handlebars::Output) -> handlebars::HelperResult {
-    let function_call = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
-    log_debug(&format!("parse_function_call_helper input: {}", function_call));
-    let parsed = parse_ast(function_call);
-    log_debug(&format!("parse_function_call_helper output: {}", parsed));
-    out.write(&parsed)?;
-    Ok(())
-}
-*/
-
-fn parse_function_call_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &handlebars::Context, _: &mut handlebars::RenderContext, out: &mut dyn handlebars::Output) -> handlebars::HelperResult {
-    let param = h.param(0).ok_or_else(|| RenderError::new("Param 0 is required for parseFunctionCall helper"))?;
-    let parsed = parse_assertion(param.value().as_str().unwrap_or(""));
-    out.write(&parsed)?;
-    Ok(())
-}
-
-
-pub fn parse_ast(ast: &str) -> String {
-    log_debug(&format!("Parsing AST: {}", ast));
-    let v: Value = match serde_json::from_str(ast) {
-        Ok(v) => v,
-        Err(e) => {
-            log_debug(&format!("Failed to parse JSON: {}", e));
-            return "null".to_string();
-        }
+    let trimmed = input.trim_matches('"');
+    let result = if trimmed.starts_with("FunctionCall(") {
+        parse_function_call_string(trimmed)
+    } else if trimmed.starts_with("MemberAccess(") {
+        parse_member_access_string(trimmed)
+    } else if trimmed.starts_with("Variable(") {
+        parse_variable_string(trimmed)
+    } else if trimmed.starts_with("NumberLiteral(") {
+        parse_number_literal_string(trimmed)
+    } else {
+        trimmed.to_string()
     };
-    parse_value(&v)
+    log_debug(&format!("parse_ast_string output: {}", result));
+
+    result
+}
+
+    fn parse_function_call_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &handlebars::Context, _: &mut handlebars::RenderContext, out: &mut dyn handlebars::Output) -> handlebars::HelperResult {
+        let param = h.param(0).ok_or_else(|| RenderError::new("Param 0 is required for parseFunctionCall helper"))?;
+        let input = param.value().to_string();
+        log_debug(&format!("parse_function_call_helper input: {}", input));
+        
+        let parsed = parse_ast_string(&input);
+        log_debug(&format!("parse_function_call_helper parsed: {}", parsed));
+    
+        out.write(&parsed)?;
+        Ok(())
+    }
+
+    fn parse_function_call_string(input: &str) -> String {
+        log_debug(&format!("parse_function_call_string input: {}", input));
+
+        let inner = input.trim_start_matches("FunctionCall(").trim_end_matches(')');
+        let parts: Vec<&str> = split_top_level(inner, ", ");
+        log_debug(&format!("parse_function_call_string parts: {:#?}", parts));
+
+        let result = if parts.len() >= 3 {
+            let member_access = parse_ast_string(parts[1]);
+            let args = parse_arguments_string(parts[2]);
+            format!("{}({})", member_access, args)
+        } else {
+            "null".to_string()
+        };
+        log_debug(&format!("parse_function_call_string output: {}", result));
+
+        result
+    }
+    
+    fn parse_member_access_string(input: &str) -> String {
+        log_debug(&format!("parse_member_access_string input: {}", input));
+
+        let inner = input.trim_start_matches("MemberAccess(").trim_end_matches(')');
+        let parts: Vec<&str> = split_top_level(inner, ", ");
+        log_debug(&format!("parse_member_access_string parts: {:?}", parts));
+
+        let result = if parts.len() >= 3 {
+            let object = parse_ast_string(parts[1]);
+            let member = parse_ast_string(parts[2]);
+            format!("{}.{}", object, member)
+        } else {
+            "null".to_string()
+        };
+        log_debug(&format!("parse_member_access_string output: {}", result));
+
+        result
+    }
+    
+
+    fn parse_variable_string(input: &str) -> String {
+        log_debug(&format!("parse_variable_string input: {}", input));
+
+        let name_start = input.rfind("name: \"").map(|i| i + 7).unwrap_or(0);
+        let name_end = input[name_start..].find('"').map(|i| i + name_start).unwrap_or(input.len());
+        let result = input[name_start..name_end].to_string();
+        log_debug(&format!("parse_variable_string output: {:?}", result));
+
+        result
+    }
+
+    fn parse_arguments_string(input: &str) -> String {
+        log_debug(&format!("-------------------------------------------------------"));
+        log_debug(&format!("parse_arguments_string input: {}", input));
+
+        let args_str = input.trim_start_matches('[').trim_end_matches(']');
+        let result = split_top_level(args_str, ", ")
+            .into_iter()
+            .map(parse_ast_string)
+            .collect::<Vec<String>>()
+            .join(", ");
+        log_debug(&format!("parse_arguments_string result: {}", result));
+        log_debug(&format!("-------------------------------------------------------"));
+
+        result
+    }
+    
+    fn parse_number_literal_string(input: &str) -> String {
+        log_debug(&format!("parse_number_literal_string input: {}", input));
+
+        let parts: Vec<&str> = input.split(", ").collect();
+        let result = if parts.len() >= 2 {
+            let value = parts[1].trim_matches('"');
+            format!("BigInt({}e18)", value)
+        } else {
+            "BigInt(0)".to_string()
+        };
+        log_debug(&format!("parse_number_literal_string output: {}", result));
+
+        result
+    }
+    
+    fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
+        log_debug(&format!("split_top_level input: {}, delimiter: {}", input, delimiter));
+
+        let mut result = Vec::new();
+        let mut current_start = 0;
+        let mut depth = 0;
+    
+        for (i, c) in input.char_indices() {
+            match c {
+                '(' | '[' => depth += 1,
+                ')' | ']' => depth -= 1,
+                _ if c == delimiter.chars().next().unwrap() && depth == 0 => {
+                    if current_start < i {
+                        result.push(&input[current_start..i]);
+                    }
+                    current_start = i + 1;
+                },
+                _ => {}
+            }
+        }
+    
+        if current_start < input.len() {
+            result.push(&input[current_start..]);
+        }
+        log_debug(&format!("split_top_level input: {:?}", result));
+
+        result
+    }
+
+fn parse_ast(ast: &str) -> String {
+    serde_json::from_str(ast)
+        .map(|v| parse_value(&v))
+        .unwrap_or_else(|_| "null".to_string())
 }
 
 
 fn parse_value(value: &Value) -> String {
     match value {
+        Value::String(s) => parse_ast(s),
         Value::Object(map) => {
             if let Some(typ) = map.get("type") {
                 match typ.as_str() {
                     Some("FunctionCall") => parse_function_call(map),
+                    Some("MemberAccess") => parse_member_access(map),
                     Some("Variable") => parse_variable(map),
+                    Some("Identifier") => parse_identifier(map),
                     Some("NumberLiteral") => parse_number_literal(map),
-                    Some(t) => {
-                        log_debug(&format!("Unknown type: {}", t));
-                        value.to_string()
-                    },
-                    None => {
-                        log_debug("Type is not a string");
-                        value.to_string()
-                    }
+                    Some("HexNumberLiteral") => parse_hex_number_literal(map),
+                    _ => value.to_string(),
                 }
             } else {
-                log_debug("No type field found");
                 value.to_string()
             }
         },
@@ -220,8 +346,8 @@ fn parse_value(value: &Value) -> String {
     }
 }
 
-
 fn parse_argument(arg: &Value) -> String {
+    println!("argument: {:#?}",arg);
     match arg {
         Value::Object(map) => {
             if let Some(typ) = map.get("type") {
@@ -255,7 +381,16 @@ fn parse_argument(arg: &Value) -> String {
 }
 
 
+
+fn parse_hex_number_literal(map: &serde_json::Map<String, Value>) -> String {
+    map.get("value")
+       .and_then(|v| v.as_str())
+       .map(|s| format!("BigInt(\"{}\")", s))
+       .unwrap_or_else(|| "BigInt(0)".to_string())
+}
+
 fn extract_function_name(func_call: &str) -> String {
+    // Look for the last occurrence of 'Identifier'
     if let Some(last_identifier) = func_call.rfind("Identifier") {
         if let Some(start) = func_call[last_identifier..].find("name: \"") {
             let start = last_identifier + start + 7;
@@ -268,7 +403,7 @@ fn extract_function_name(func_call: &str) -> String {
 }
 
 
-//HERE IS THE BUG
+
 fn extract_function_args(func_call: &str) -> Vec<String> {
     let mut args = Vec::new();
     let mut current_arg = String::new();
@@ -309,10 +444,12 @@ fn extract_function_args(func_call: &str) -> Vec<String> {
 
 ///
 fn parse_assertion_function_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &handlebars::Context, _: &mut handlebars::RenderContext, out: &mut dyn handlebars::Output) -> handlebars::HelperResult {
-    println!("parse_assertion_function_helper:");
-    println!("handlebars: {:#?}",h);
     let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
     let function = extract_function_name(param);
+
+    log_debug(&format!("parse_assertion_function_helper param {:#?}:",param));
+    log_debug(&format!("parse_assertion_function_helper function {:#?}:",function));
+
     out.write(&function)?;
     Ok(())
 }
@@ -320,6 +457,9 @@ fn parse_assertion_function_helper(h: &handlebars::Helper, _: &handlebars::Handl
 fn parse_assertion_args_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &handlebars::Context, _: &mut handlebars::RenderContext, out: &mut dyn handlebars::Output) -> handlebars::HelperResult {
     let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
     let args = extract_function_args(param);
+
+    log_debug(&format!("parse_assertion_args_helper param {:#?}:",param));
+    log_debug(&format!("parse_assertion_args_helper function {:#?}:",args));
     out.write(&args.join(", "))?;
     Ok(())
 }

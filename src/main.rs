@@ -30,6 +30,7 @@ fn main() -> Result<()> {
         return Ok(());
     };
 
+    println!("====================================");
     println!("Test Contract: {}", test_contract.name);
     
     println!("\nState Variables:");

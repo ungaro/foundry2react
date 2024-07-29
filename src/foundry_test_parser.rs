@@ -4,7 +4,6 @@ use eyre::{eyre, Result, WrapErr};
 use std::fs;
 use std::path::Path;
 use serde::Serialize;
-use serde_json::Value;
 
 #[derive(Debug, Serialize)]
 pub struct TestContract {
@@ -141,7 +140,7 @@ fn extract_test_step_from_expression(expr: &Expression) -> Option<TestStep> {
             if let Expression::Variable(id) = box_expr.as_ref() {
                 let function_name = id.name.clone();
                 let arguments: Vec<String> = args.iter().map(|arg| format!("{:?}", arg)).collect();
-                println!("ARGUMENTS; {:#?}",arguments);
+                println!("ARGUMENTS: {:#?}",arguments);
                 match function_name.as_str() {
                     "vm.prank" => Some(TestStep::VMPrank(arguments[0].clone())),
                     "vm.startPrank" => Some(TestStep::VMStartPrank(arguments[0].clone())),
@@ -167,6 +166,8 @@ fn extract_test_step_from_expression(expr: &Expression) -> Option<TestStep> {
                     let contract = id.name.clone();
                     let function = member.name.clone();
                     let arguments: Vec<String> = args.iter().map(|arg| format!("{:?}", arg)).collect();
+                    println!("ARGUMENTS1: {:#?}",arguments);
+
                     Some(TestStep::FunctionCall {
                         contract: Some(contract),
                         function,

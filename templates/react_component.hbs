@@ -68,65 +68,37 @@ const {{contractName}}TestComponent = () => {
     setup();
   }, []);
 
-  {{#each testFunctions}}
-  const {{this.name}} = async () => {
-    try {
-      {{#each this.steps}}
+
+{{#each testFunctions}}
+const {{this.name}} = async () => {
+  try {
+    {{#each this.steps}}
       {{#if (eq this.type "FunctionCall")}}
-      {{#if (eq this.contract "vm")}}
-      // VM operation: {{this.function}}({{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}})
-      {{else}}
-      await contract.write.{{this.function}}([{{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}}]);
-      {{/if}}
+        {{#if (eq this.contract "vm")}}
+    // VM operation: {{this.function}}({{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}})
+        {{else}}
+    await contract.write.{{this.function}}([{{#each this.arguments}}{{parseArg this}}{{#unless @last}}, {{/unless}}{{/each}}]);
+        {{/if}}
       {{else if (eq this.type "Assertion")}}
-    {{
+ {{
 #if
  (eq this.assert_type "assertEq")}}
-    {{
-#with
- (parseFunctionCall this.arguments.[0])}}
-      {{
-#if
- (ne this "null")}}
-        const result = await {{this}};
-        console.assert(result === {{parseArg ../this.arguments.[1]}}, '{{../this.assert_type}} failed: {{this}} !== {{parseArg ../this.arguments.[1]}}');
-      {{else}}
-        console.log('Unable to parse function call for assertion: {{json ../this.arguments.[0]}}');
-      {{
+    const result = await {{parseFunctionCall this.arguments.[0]}};
+    console.assert(result === {{parseArg this.arguments.[1]}}, '{{this.assert_type}} failed: {{parseFunctionCall this.arguments.[0]}} !== {{parseArg this.arguments.[1]}}');
+        {{else}}
+    console.assert(await {{parseFunctionCall this.arguments.[0]}}, '{{this.assert_type}} failed');
+        {{
 /if
 }}
-    {{
-/with
-}}
-  {{else}}
-    {{
-#with
- (parseFunctionCall this.arguments.[0])}}
-      {{
-#if
- (ne this "null")}}
-        console.assert(await {{this}}, '{{../this.assert_type}} failed');
-      {{else}}
-        console.log('Unable to parse function call for assertion: {{json ../this.arguments.[0]}}');
-      {{
-/if
-}}
-    {{
-/with
-}}
-  {{
-/if
-}}
+     {{/if}}
+    {{/each}}
+    console.log('{{this.name}} passed');
+  } catch (error) {
+    console.error('{{this.name}} failed:', error);
+  }
+};
 
-      {{/if}}
-      {{/each}}
-      console.log('{{this.name}} passed');
-    } catch (error) {
-      console.error('{{this.name}} failed:', error);
-    }
-  };
-
-  {{/each}}
+{{/each}}
 
   return (
     <div>
