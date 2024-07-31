@@ -27,7 +27,7 @@ Foundry2React is a powerful tool designed to automatically generate React compon
 1. Clone the repository:
 
    ```
-   git clone https://github.com/yourusername/foundry2react.git
+   git clone https://github.com/ungaro/foundry2react.git
    cd foundry2react
    ```
 

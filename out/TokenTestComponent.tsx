@@ -58,7 +58,7 @@ const TokenTestTestComponent = () => {
 
       setContract(contract);
 
-      await contract.write.mint([Variable(Identifier { loc: File(0, 349, 354), name: \, BigInt(356e18)]);
+      await contract.write.mint([alice, BigInt(356)]);
     };
 
     setup();
@@ -67,12 +67,12 @@ const TokenTestTestComponent = () => {
 
 const testTransfer = async () => {
   try {
-    // VM operation: startPrank(Variable(Identifier { loc: File(0, 432, 437), name: \)
-    console.assert(await  MemberAccess(File(0, 459, 473), Variable(Identifier { loc: File(0, 459, 464), name: \"token\" }), Identifier { loc: File(0, 465, 473), name: \"transfer\" })( [Variable(Identifier { loc: File(0, 474, 477), name: \"bob\" }), NumberLiteral(File(0, 479, 485), \"100\", \"18\", None)), 'assertTrue failed');
-    const result = await  MemberAccess(File(0, 506, 521), Variable(Identifier { loc: File(0, 506, 511), name: \"token\" }), Identifier { loc: File(0, 512, 521), name: \"balanceOf\" })( [Variable(Identifier { loc: File(0, 522, 525), name: \"bob\" }));
-    console.assert(result === BigInt(528e18), 'assertEq failed:  MemberAccess(File(0, 506, 521), Variable(Identifier { loc: File(0, 506, 511), name: \"token\" }), Identifier { loc: File(0, 512, 521), name: \"balanceOf\" })( [Variable(Identifier { loc: File(0, 522, 525), name: \"bob\" })) !== BigInt(528e18)');
-    const result = await  MemberAccess(File(0, 554, 569), Variable(Identifier { loc: File(0, 554, 559), name: \"token\" }), Identifier { loc: File(0, 560, 569), name: \"balanceOf\" })( [Variable(Identifier { loc: File(0, 570, 575), name: \"alice\" }));
-    console.assert(result === BigInt(578e18), 'assertEq failed:  MemberAccess(File(0, 554, 569), Variable(Identifier { loc: File(0, 554, 559), name: \"token\" }), Identifier { loc: File(0, 560, 569), name: \"balanceOf\" })( [Variable(Identifier { loc: File(0, 570, 575), name: \"alice\" })) !== BigInt(578e18)');
+    // VM operation: startPrank(alice)
+    console.assert(await unknownFunction11(), 'assertTrue failed');
+    const result = await unknownFunction11();
+    console.assert(result === BigInt(528), 'assertEq failed: unknownFunction11() !== BigInt(528)');
+    const result = await unknownFunction11();
+    console.assert(result === BigInt(578), 'assertEq failed: unknownFunction11() !== BigInt(578)');
     // VM operation: stopPrank()
     console.log('testTransfer passed');
   } catch (error) {
@@ -82,8 +82,8 @@ const testTransfer = async () => {
 
 const testFailTransferInsufficientBalance = async () => {
   try {
-    // VM operation: prank(Variable(Identifier { loc: File(0, 695, 700), name: \)
-    await contract.write.transfer([Variable(Identifier { loc: File(0, 726, 729), name: \, BigInt(731e18)]);
+    // VM operation: prank(alice)
+    await contract.write.transfer([bob, BigInt(731)]);
     console.log('testFailTransferInsufficientBalance passed');
   } catch (error) {
     console.error('testFailTransferInsufficientBalance failed:', error);
@@ -92,16 +92,16 @@ const testFailTransferInsufficientBalance = async () => {
 
 const testApproveAndTransferFrom = async () => {
   try {
-    // VM operation: prank(Variable(Identifier { loc: File(0, 816, 821), name: \)
-    console.assert(await  MemberAccess(File(0, 843, 856), Variable(Identifier { loc: File(0, 843, 848), name: \"token\" }), Identifier { loc: File(0, 849, 856), name: \"approve\" })( [Variable(Identifier { loc: File(0, 857, 860), name: \"bob\" }), NumberLiteral(File(0, 862, 868), \"100\", \"18\", None)), 'assertTrue failed');
-    // VM operation: prank(Variable(Identifier { loc: File(0, 898, 901), name: \)
-    console.assert(await  MemberAccess(File(0, 923, 941), Variable(Identifier { loc: File(0, 923, 928), name: \"token\" }), Identifier { loc: File(0, 929, 941), name: \"transferFrom\" })( [Variable(Identifier { loc: File(0, 942, 947), name: \"alice\" }), Variable(Identifier { loc: File(0, 949, 952), name: \"bob\" }), NumberLiteral(File(0, 954, 959), \"50\", \"18\", None)), 'assertTrue failed');
-    const result = await  MemberAccess(File(0, 980, 995), Variable(Identifier { loc: File(0, 980, 985), name: \"token\" }), Identifier { loc: File(0, 986, 995), name: \"balanceOf\" })( [Variable(Identifier { loc: File(0, 996, 999), name: \"bob\" }));
-    console.assert(result === BigInt(1002e18), 'assertEq failed:  MemberAccess(File(0, 980, 995), Variable(Identifier { loc: File(0, 980, 985), name: \"token\" }), Identifier { loc: File(0, 986, 995), name: \"balanceOf\" })( [Variable(Identifier { loc: File(0, 996, 999), name: \"bob\" })) !== BigInt(1002e18)');
-    const result = await  MemberAccess(File(0, 1027, 1042), Variable(Identifier { loc: File(0, 1027, 1032), name: \"token\" }), Identifier { loc: File(0, 1033, 1042), name: \"balanceOf\" })( [Variable(Identifier { loc: File(0, 1043, 1048), name: \"alice\" }));
-    console.assert(result === BigInt(1051e18), 'assertEq failed:  MemberAccess(File(0, 1027, 1042), Variable(Identifier { loc: File(0, 1027, 1032), name: \"token\" }), Identifier { loc: File(0, 1033, 1042), name: \"balanceOf\" })( [Variable(Identifier { loc: File(0, 1043, 1048), name: \"alice\" })) !== BigInt(1051e18)');
-    const result = await  MemberAccess(File(0, 1077, 1092), Variable(Identifier { loc: File(0, 1077, 1082), name: \"token\" }), Identifier { loc: File(0, 1083, 1092), name: \"allowance\" })( [Variable(Identifier { loc: File(0, 1093, 1098), name: \"alice\" }), Variable(Identifier { loc: File(0, 1100, 1103), name: \"bob\" }));
-    console.assert(result === BigInt(1106e18), 'assertEq failed:  MemberAccess(File(0, 1077, 1092), Variable(Identifier { loc: File(0, 1077, 1082), name: \"token\" }), Identifier { loc: File(0, 1083, 1092), name: \"allowance\" })( [Variable(Identifier { loc: File(0, 1093, 1098), name: \"alice\" }), Variable(Identifier { loc: File(0, 1100, 1103), name: \"bob\" })) !== BigInt(1106e18)');
+    // VM operation: prank(alice)
+    console.assert(await unknownFunction11(), 'assertTrue failed');
+    // VM operation: prank(bob)
+    console.assert(await unknownFunction11(), 'assertTrue failed');
+    const result = await unknownFunction11();
+    console.assert(result === BigInt(1002), 'assertEq failed: unknownFunction11() !== BigInt(1002)');
+    const result = await unknownFunction11();
+    console.assert(result === BigInt(1051), 'assertEq failed: unknownFunction11() !== BigInt(1051)');
+    const result = await unknownFunction11();
+    console.assert(result === BigInt(1106), 'assertEq failed: unknownFunction11() !== BigInt(1106)');
     console.log('testApproveAndTransferFrom passed');
   } catch (error) {
     console.error('testApproveAndTransferFrom failed:', error);

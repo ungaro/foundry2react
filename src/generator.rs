@@ -5,7 +5,7 @@ use std::path::Path;
 
 use std::fs::OpenOptions;
 use std::io::Write;
-
+use regex::Regex;
 use eyre::Result;
 
 use std::collections::VecDeque;
@@ -116,6 +116,12 @@ fn parse_member_access(map: &serde_json::Map<String, Value>) -> String {
     let member = parse_value(map.get("member").unwrap_or(&Value::Null));
     format!("{}.{}", object, member)
 }
+
+
+
+
+
+
 fn parse_variable(map: &serde_json::Map<String, Value>) -> String {
     map.get("name")
        .and_then(|n| n.as_object())
@@ -172,10 +178,8 @@ fn parse_arg_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &hand
 }
 
 fn parse_ast_string(input: &str) -> String {
-    log_debug(&format!("parse_ast_string input: {}", input));
-
     let trimmed = input.trim_matches('"');
-    let result = if trimmed.starts_with("FunctionCall(") {
+    if trimmed.starts_with("FunctionCall(") {
         parse_function_call_string(trimmed)
     } else if trimmed.starts_with("MemberAccess(") {
         parse_member_access_string(trimmed)
@@ -183,13 +187,25 @@ fn parse_ast_string(input: &str) -> String {
         parse_variable_string(trimmed)
     } else if trimmed.starts_with("NumberLiteral(") {
         parse_number_literal_string(trimmed)
+    } else if trimmed.starts_with("Identifier(") {
+        parse_identifier_string(trimmed)
     } else {
+        log_debug(&format!("Unknown AST node type: {}", trimmed));
         trimmed.to_string()
-    };
-    log_debug(&format!("parse_ast_string output: {}", result));
-
-    result
+    }
 }
+
+fn parse_identifier_string(input: &str) -> String {
+    if let Some(start) = input.rfind("name: \"") {
+        let start = start + 7;
+        if let Some(end) = input[start..].find('"') {
+            return input[start..start+end].to_string();
+        }
+    }
+    log_debug(&format!("Failed to parse identifier: {}", input));
+    "unknownIdentifier".to_string()
+}
+
 
     fn parse_function_call_helper(h: &handlebars::Helper, _: &handlebars::Handlebars, _: &handlebars::Context, _: &mut handlebars::RenderContext, out: &mut dyn handlebars::Output) -> handlebars::HelperResult {
         let param = h.param(0).ok_or_else(|| RenderError::new("Param 0 is required for parseFunctionCall helper"))?;
@@ -202,7 +218,7 @@ fn parse_ast_string(input: &str) -> String {
         out.write(&parsed)?;
         Ok(())
     }
-
+/*
     fn parse_function_call_string(input: &str) -> String {
         log_debug(&format!("parse_function_call_string input: {}", input));
 
@@ -221,7 +237,64 @@ fn parse_ast_string(input: &str) -> String {
 
         result
     }
+*/
+
+fn parse_function_call_string(input: &str) -> String {
+    let parts: Vec<&str> = split_top_level(input, ", ");
+    log_debug(&format!("Failed to parse function call / parts: {:#?}", parts));
+
+    if parts.len() >= 3 {
+        let function = parse_ast_string(parts[1]);
+        let args = parse_arguments_string(parts[2]);
+        if function.contains('.') {
+            format!("{}({})", function, args)
+        } else {
+            format!("contract.write.{}({})", function, args)
+        }
+    } else {
+        log_debug(&format!("Failed to parse function call: {}", input));
+        "unknownFunction11()".to_string()
+    }
+}
+
+/*
+fn parse_function_call_string(input: &str) -> String {
+        // Extract the member access part
+        let member_access_re = Regex::new(r#"MemberAccess\(.*?, Variable\(Identifier \{ .*? name: "(\w+)" \}\), Identifier \{ .*? name: "(\w+)" \}\)"#).unwrap();
+        let member_access = member_access_re.captures(input)
+            .map(|cap| format!("{}.{}", &cap[1], &cap[2]))
+            .unwrap_or_else(|| "unknownObject.unknownMethod000000".to_string());
     
+        // Extract the arguments
+        let args_re = Regex::new(r"\[(.*?)\]").unwrap();
+        let args = args_re.captures(input)
+            .and_then(|cap| Some(cap[1].to_string()))
+            .unwrap_or_else(String::new);
+    
+        // Parse individual arguments
+        let parsed_args: Vec<String> = args.split(", ")
+            .map(|arg| {
+                if arg.contains("Variable") {
+                    let var_re = Regex::new(r#"name: "(\w+)""#).unwrap();
+                    var_re.captures(arg)
+                        .map(|cap| cap[1].to_string())
+                        .unwrap_or_else(|| "unknownVar".to_string())
+                } else if arg.contains("NumberLiteral") {
+                    let num_re = Regex::new(r#"NumberLiteral\(.*?, "(\d+)", "(\d+)""#).unwrap();
+                    num_re.captures(arg)
+                        .map(|cap| format!("parseEther(\"{}\")", &cap[1]))
+                        .unwrap_or_else(|| "parseEther(\"0\")".to_string())
+                } else {
+                    "unknownArg".to_string()
+                }
+            })
+            .collect();
+    
+        // Combine everything
+        format!("{}([{}]);", member_access, parsed_args.join(", "))
+    }
+    */
+    /*
     fn parse_member_access_string(input: &str) -> String {
         log_debug(&format!("parse_member_access_string input: {}", input));
 
@@ -240,8 +313,23 @@ fn parse_ast_string(input: &str) -> String {
 
         result
     }
-    
 
+*/
+
+fn parse_member_access_string(input: &str) -> String {
+    let parts: Vec<&str> = split_top_level(input, ", ");
+    if parts.len() >= 3 {
+        let object = parse_ast_string(parts[1]);
+        let member = parse_ast_string(parts[2]);
+        format!("{}.{}", object, member)
+    } else {
+        log_debug(&format!("Failed to parse member access: {}", input));
+
+        "unknownObject.unknownMember2342342".to_string()
+    }
+}
+    
+/*
     fn parse_variable_string(input: &str) -> String {
         log_debug(&format!("parse_variable_string input: {}", input));
 
@@ -252,9 +340,24 @@ fn parse_ast_string(input: &str) -> String {
 
         result
     }
+*/
 
+fn parse_variable_string(input: &str) -> String {
+    
+    if let Some(start) = input.rfind("name: \\\"") {
+        let start = start + 8; // 7 for "name: \"" plus 1 for the extra backslash
+        if let Some(end) = input[start..].find("\\\"") {
+            return input[start..start+end].to_string();
+        }
+    }
+    log_debug(&format!("Failed to parse variable: {}", input));
+
+    "unknownVariable2222".to_string()
+}
+
+/*
     fn parse_arguments_string(input: &str) -> String {
-        log_debug(&format!("-------------------------------------------------------"));
+        log_debug(&format!("---------------START-----------------------------"));
         log_debug(&format!("parse_arguments_string input: {}", input));
 
         let args_str = input.trim_start_matches('[').trim_end_matches(']');
@@ -264,11 +367,26 @@ fn parse_ast_string(input: &str) -> String {
             .collect::<Vec<String>>()
             .join(", ");
         log_debug(&format!("parse_arguments_string result: {}", result));
-        log_debug(&format!("-------------------------------------------------------"));
+        log_debug(&format!("-------------END-----------------------------------"));
 
         result
     }
+*/
+fn parse_arguments_string(input: &str) -> String {
+    let args_str = input.trim_start_matches('[').trim_end_matches(']');
+    let parsed_args = split_top_level(args_str, ", ")
+        .into_iter()
+        .map(parse_ast_string)
+        .collect::<Vec<String>>();
     
+    if parsed_args.is_empty() {
+        log_debug(&format!("No arguments found in: {}", input));
+    }
+    
+    parsed_args.join(", ")
+}
+
+    /*
     fn parse_number_literal_string(input: &str) -> String {
         log_debug(&format!("parse_number_literal_string input: {}", input));
 
@@ -283,7 +401,24 @@ fn parse_ast_string(input: &str) -> String {
 
         result
     }
-    
+*/
+
+fn parse_number_literal_string(input: &str) -> String {
+    let parts: Vec<&str> = input.split(", ").collect();
+    if parts.len() >= 3 {
+        let value = parts[1].trim_matches('"');
+        let decimals = parts[2].trim_matches('"').parse().unwrap_or(0);
+        if decimals > 0 {
+            format!("BigInt(\"{}{}\")", value, "0".repeat(decimals))
+        } else {
+            format!("BigInt({})", value)
+        }
+    } else {
+        log_debug(&format!("Failed to parse number literal: {}", input));
+        "BigInt(0)".to_string()
+    }
+}
+    /*
     fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
         log_debug(&format!("split_top_level input: {}, delimiter: {}", input, delimiter));
 
@@ -312,6 +447,108 @@ fn parse_ast_string(input: &str) -> String {
 
         result
     }
+
+*/
+/*
+FunctionCall(File(0, 459, 486), 
+    MemberAccess(File(0, 459, 473), 
+    Variable(
+        Identifier { loc: File(0, 459, 464), name: \\\"token\\\" }), 
+        Identifier { loc: File(0, 465, 473), name: \\\"transfer\\\" }), 
+        [
+        Variable(
+            Identifier { loc: File(0, 474, 477), name: \\\"bob\\\" }), 
+            NumberLiteral(File(0, 479, 485), \\\"100\\\", \\\"18\\\", None)])
+
+
+
+
+
+
+fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
+    let mut result = Vec::new();
+        let mut current_start = 0;
+        let mut depth = 0;
+        log_debug(&format!("delimiter here {}", delimiter));
+
+        for (i, c) in input.char_indices() {
+            log_debug(&format!("here is char {}", c));
+
+            match c {
+                '(' | '[' => {depth += 1;log_debug(&format!("we hit some depth up"));},
+                ')' | ']' => {depth -= 1;log_debug(&format!("we hit some depth down"));},
+                _ if c == delimiter.chars().next().unwrap() && depth == 0 => {
+
+                    if current_start < i {
+                        result.push(&input[current_start..i]);
+                    }
+                    current_start = i + delimiter.len();
+                },
+                _ => {}
+            }
+        }
+    
+        if current_start < input.len() {
+            result.push(&input[current_start..]);
+        }
+
+        log_debug(&format!("split_top_level result: {:#?}", result));
+
+
+        result
+    }
+*/
+fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
+
+        let mut result = Vec::new();
+        let mut current_start = 0;
+        let mut depth = 0;
+        let mut in_quotes = false;
+        log_debug(&format!("split_top_level input: {:#?}", input));
+        log_debug(&format!("split_top_level delimiter: {}", delimiter));
+
+
+        for (i, c) in input.char_indices() {
+            match c {
+                '(' => if !in_quotes { depth += 1 },
+                ')' => if !in_quotes { 
+                    log_debug(&format!("split_top_level push: {:#?}", &input[current_start..=i]));
+
+                    depth -= 1;
+                    if depth == 0 && input[current_start..=i].starts_with("FunctionCall(") {
+                        result.push(&input[current_start..=i]);
+                        current_start = i + 1;
+                    }
+                    log_debug(&format!("split_top_level current_result: {:#?}", result));
+
+                },
+                '"' => in_quotes = !in_quotes,
+                '\\' => { /* Skip the next character if it's an escape */ },
+                _ if c == delimiter.chars().next().unwrap() && depth == 0 && !in_quotes => {
+                    if current_start < i {
+                        result.push(&input[current_start..i]);
+                    }
+                    current_start = i + delimiter.len();
+                },
+                _ => {}
+            }
+        }
+    
+        if current_start < input.len() {
+            result.push(&input[current_start..]);
+        }
+    
+        // If no splits were made, return the entire input as a single item
+        if result.is_empty() {
+            result.push(input);
+        }
+        log_debug(&format!("split_top_level result: {:#?}", result));
+
+        result
+    }
+
+
+
 
 fn parse_ast(ast: &str) -> String {
     serde_json::from_str(ast)
@@ -391,6 +628,8 @@ fn parse_hex_number_literal(map: &serde_json::Map<String, Value>) -> String {
 
 fn extract_function_name(func_call: &str) -> String {
     // Look for the last occurrence of 'Identifier'
+    log_debug(&format!("func_call input: {:?}", func_call));
+
     if let Some(last_identifier) = func_call.rfind("Identifier") {
         if let Some(start) = func_call[last_identifier..].find("name: \"") {
             let start = last_identifier + start + 7;
@@ -399,7 +638,7 @@ fn extract_function_name(func_call: &str) -> String {
             }
         }
     }
-    "unknownFunction".to_string()
+    "unknownFunction22".to_string()
 }
 
 
