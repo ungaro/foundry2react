@@ -237,7 +237,7 @@ fn parse_identifier_string(input: &str) -> String {
 
         result
     }
-*/
+
 
 fn parse_function_call_string(input: &str) -> String {
     let parts: Vec<&str> = split_top_level(input, ", ");
@@ -256,6 +256,39 @@ fn parse_function_call_string(input: &str) -> String {
         "unknownFunction11()".to_string()
     }
 }
+*/
+/*
+fn parse_function_call_string(input: &str) -> String {
+    let content = input.trim_start_matches("FunctionCall(").trim_end_matches(')');
+    let parts: Vec<&str> = split_top_level(content, ", ");
+    
+    if parts.len() >= 3 {
+        let _file_info = parts[0]; // We're ignoring this for now
+        let function = parse_ast_string(parts[1]);
+        let args = parse_arguments_string(parts[2]);
+        format!("{}({})", function, args)
+    } else {
+        log_debug(&format!("Unexpected FunctionCall format: {}", input));
+        "unknownFunction()".to_string()
+    }
+}
+*/
+fn parse_function_call_string(input: &str) -> String {
+    let content = input.trim_start_matches("FunctionCall(").trim_end_matches(')');
+    let parts: Vec<&str> = split_top_level(content, ", ");
+    
+    if parts.len() >= 3 {
+        let _file_info = parts[0]; // We're ignoring this for now
+        let function = parse_ast_string(parts[1]);
+        let args = parse_arguments_string(parts[2]);
+        format!("{}({})", function, args)
+    } else {
+        log_debug(&format!("Unexpected FunctionCall format: {}", input));
+        "unknownFunction()".to_string()
+    }
+}
+
+
 
 /*
 fn parse_function_call_string(input: &str) -> String {
@@ -315,6 +348,7 @@ fn parse_function_call_string(input: &str) -> String {
     }
 
 */
+/*
 
 fn parse_member_access_string(input: &str) -> String {
     let parts: Vec<&str> = split_top_level(input, ", ");
@@ -328,6 +362,23 @@ fn parse_member_access_string(input: &str) -> String {
         "unknownObject.unknownMember2342342".to_string()
     }
 }
+*/
+
+fn parse_member_access_string(input: &str) -> String {
+    let content = input.trim_start_matches("MemberAccess(").trim_end_matches(')');
+    let parts: Vec<&str> = split_top_level(content, ", ");
+    
+    if parts.len() >= 3 {
+        let _file_info = parts[0]; // We're ignoring this for now
+        let object = parse_ast_string(parts[1]);
+        let member = parse_ast_string(parts[2]);
+        format!("{}.{}", object, member)
+    } else {
+        "unknownObject.unknownMember".to_string()
+    }
+}
+
+
     
 /*
     fn parse_variable_string(input: &str) -> String {
@@ -340,7 +391,7 @@ fn parse_member_access_string(input: &str) -> String {
 
         result
     }
-*/
+
 
 fn parse_variable_string(input: &str) -> String {
     
@@ -354,6 +405,20 @@ fn parse_variable_string(input: &str) -> String {
 
     "unknownVariable2222".to_string()
 }
+*/
+fn parse_variable_string(input: &str) -> String {
+    let content = input.trim_start_matches("Variable(").trim_end_matches(')');
+    if let Some(identifier) = content.strip_prefix("Identifier ") {
+        let parts: Vec<&str> = split_top_level(identifier.trim_matches('{').trim_matches('}'), ", ");
+        for part in parts {
+            if part.starts_with("name: ") {
+                return part.trim_start_matches("name: ").trim_matches('"').to_string();
+            }
+        }
+    }
+    "unknownVariable".to_string()
+}
+
 
 /*
     fn parse_arguments_string(input: &str) -> String {
@@ -401,7 +466,7 @@ fn parse_arguments_string(input: &str) -> String {
 
         result
     }
-*/
+
 
 fn parse_number_literal_string(input: &str) -> String {
     let parts: Vec<&str> = input.split(", ").collect();
@@ -418,6 +483,18 @@ fn parse_number_literal_string(input: &str) -> String {
         "BigInt(0)".to_string()
     }
 }
+*/
+fn parse_number_literal_string(input: &str) -> String {
+    let content = input.trim_start_matches("NumberLiteral(").trim_end_matches(')');
+    let parts: Vec<&str> = split_top_level(content, ", ");
+    if parts.len() >= 2 {
+        parts[1].trim_matches('"').to_string()
+    } else {
+        "0".to_string()
+    }
+}
+
+
     /*
     fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
         log_debug(&format!("split_top_level input: {}, delimiter: {}", input, delimiter));
@@ -497,7 +574,11 @@ fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
 
         result
     }
-*/
+
+
+
+
+
 fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
 
         let mut result = Vec::new();
@@ -542,13 +623,83 @@ fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
         if result.is_empty() {
             result.push(input);
         }
+        
         log_debug(&format!("split_top_level result: {:#?}", result));
 
         result
     }
 
+*/
 
+fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
+    let mut result = Vec::new();
+    let mut current_start = 0;
+    let mut depth = 0;
+    let mut in_quotes = false;
 
+    for (i, c) in input.char_indices() {
+        match c {
+            '(' => if !in_quotes { depth += 1 },
+            ')' => if !in_quotes { depth -= 1 },
+            '"' => in_quotes = !in_quotes,
+            '\\' => { /* Skip the next character if it's an escape */ },
+            _ if c == delimiter.chars().next().unwrap() && depth == 0 && !in_quotes => {
+                result.push(input[current_start..i].trim());
+                current_start = i + delimiter.len();
+            },
+            _ => {}
+        }
+    }
+
+    if current_start < input.len() {
+        result.push(input[current_start..].trim());
+    }
+
+    result
+}
+
+/*
+    fn split_top_level<'a>(input: &'a str, delimiter: &str) -> Vec<&'a str> {
+        let mut result = Vec::new();
+        let mut current_start = 0;
+        let mut depth = 0;
+        let mut in_quotes = false;
+        log_debug(&format!("split_top_level input: {:#?}", input));
+        log_debug(&format!("split_top_level delimiter: {}", delimiter));
+    
+        for (i, c) in input.char_indices() {
+            match c {
+                '(' => {
+                    if !in_quotes { 
+                        depth += 1;
+                        if depth == 1 && input[current_start..i].trim() == "FunctionCall" {
+                            current_start = i + 1;
+                        }
+                    }
+                },
+                ')' => if !in_quotes { depth -= 1 },
+                '"' => in_quotes = !in_quotes,
+                '\\' => { /* Skip the next character if it's an escape */ },
+                _ if c == delimiter.chars().next().unwrap() && depth == 1 && !in_quotes => {
+                    result.push(input[current_start..i].trim());
+                    current_start = i + delimiter.len();
+                    log_debug(&format!("split_top_level push: {:#?}", result.last().unwrap()));
+                },
+                _ => {}
+            }
+        }
+    
+        if current_start < input.len() {
+            result.push(input[current_start..].trim());
+            log_debug(&format!("split_top_level push: {:#?}", result.last().unwrap()));
+        }
+    
+        log_debug(&format!("split_top_level result: {:#?}", result));
+    
+        result
+    }
+
+*/
 
 fn parse_ast(ast: &str) -> String {
     serde_json::from_str(ast)

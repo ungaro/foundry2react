@@ -58,7 +58,7 @@ const TokenTestTestComponent = () => {
 
       setContract(contract);
 
-      await contract.write.mint([alice, BigInt(356)]);
+      await contract.write.mint([\"alice\, \"1000\]);
     };
 
     setup();
@@ -67,12 +67,12 @@ const TokenTestTestComponent = () => {
 
 const testTransfer = async () => {
   try {
-    // VM operation: startPrank(alice)
-    console.assert(await unknownFunction11(), 'assertTrue failed');
-    const result = await unknownFunction11();
-    console.assert(result === BigInt(528), 'assertEq failed: unknownFunction11() !== BigInt(528)');
-    const result = await unknownFunction11();
-    console.assert(result === BigInt(578), 'assertEq failed: unknownFunction11() !== BigInt(578)');
+    // VM operation: startPrank(\"alice\)
+    console.assert(await \"token\.Identifier { loc: File(0, 465, 473)(\"bob\), 'assertTrue failed');
+    const result = await \"token\.Identifier { loc: File(0, 512, 521)(\"bob\);
+    console.assert(result === \"100\, 'assertEq failed: \"token\.Identifier { loc: File(0, 512, 521)(\"bob\) !== \"100\');
+    const result = await \"token\.Identifier { loc: File(0, 560, 569)(\"alice\);
+    console.assert(result === \"900\, 'assertEq failed: \"token\.Identifier { loc: File(0, 560, 569)(\"alice\) !== \"900\');
     // VM operation: stopPrank()
     console.log('testTransfer passed');
   } catch (error) {
@@ -82,8 +82,8 @@ const testTransfer = async () => {
 
 const testFailTransferInsufficientBalance = async () => {
   try {
-    // VM operation: prank(alice)
-    await contract.write.transfer([bob, BigInt(731)]);
+    // VM operation: prank(\"alice\)
+    await contract.write.transfer([\"bob\, \"2000\]);
     console.log('testFailTransferInsufficientBalance passed');
   } catch (error) {
     console.error('testFailTransferInsufficientBalance failed:', error);
@@ -92,16 +92,16 @@ const testFailTransferInsufficientBalance = async () => {
 
 const testApproveAndTransferFrom = async () => {
   try {
-    // VM operation: prank(alice)
-    console.assert(await unknownFunction11(), 'assertTrue failed');
-    // VM operation: prank(bob)
-    console.assert(await unknownFunction11(), 'assertTrue failed');
-    const result = await unknownFunction11();
-    console.assert(result === BigInt(1002), 'assertEq failed: unknownFunction11() !== BigInt(1002)');
-    const result = await unknownFunction11();
-    console.assert(result === BigInt(1051), 'assertEq failed: unknownFunction11() !== BigInt(1051)');
-    const result = await unknownFunction11();
-    console.assert(result === BigInt(1106), 'assertEq failed: unknownFunction11() !== BigInt(1106)');
+    // VM operation: prank(\"alice\)
+    console.assert(await \"token\.Identifier { loc: File(0, 849, 856)(\"bob\), 'assertTrue failed');
+    // VM operation: prank(\"bob\)
+    console.assert(await \"token\.Identifier { loc: File(0, 929, 941)(\"alice\), 'assertTrue failed');
+    const result = await \"token\.Identifier { loc: File(0, 986, 995)(\"bob\);
+    console.assert(result === \"50\, 'assertEq failed: \"token\.Identifier { loc: File(0, 986, 995)(\"bob\) !== \"50\');
+    const result = await \"token\.Identifier { loc: File(0, 1033, 1042)(\"alice\);
+    console.assert(result === \"950\, 'assertEq failed: \"token\.Identifier { loc: File(0, 1033, 1042)(\"alice\) !== \"950\');
+    const result = await \"token\.Identifier { loc: File(0, 1083, 1092)(\"alice\);
+    console.assert(result === \"50\, 'assertEq failed: \"token\.Identifier { loc: File(0, 1083, 1092)(\"alice\) !== \"50\');
     console.log('testApproveAndTransferFrom passed');
   } catch (error) {
     console.error('testApproveAndTransferFrom failed:', error);
